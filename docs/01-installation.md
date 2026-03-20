@@ -1,6 +1,6 @@
 # Installation Guide
 
-Complete step-by-step installation instructions for nerd-dictation++.
+Complete step-by-step installation instructions for nerd-dictation-auto-switch-languages.
 
 ---
 
@@ -133,12 +133,12 @@ mv vosk-model-ar-mgb2-0.4 model-ar
 
 ---
 
-## Step 6: Copy nerd-dictation++ Scripts
+## Step 6: Copy nerd-dictation-auto-switch-languages Scripts
 
 ```bash
 # Copy scripts to nerd-dictation folder
-cp ~/Desktop/nerd-dictation++/scripts/dictate-start ~/nerd-dictation/
-cp ~/Desktop/nerd-dictation++/scripts/dictate-stop ~/nerd-dictation/
+cp ~/Desktop/nerd-dictation-auto-switch-languages/scripts/dictate-start ~/nerd-dictation/
+cp ~/Desktop/nerd-dictation-auto-switch-languages/scripts/dictate-stop ~/nerd-dictation/
 
 # Make them executable
 chmod +x ~/nerd-dictation/dictate-start
@@ -192,7 +192,7 @@ See [Desktop Integration Guide](05-desktop-integration.md) for detailed instruct
 Instead of following all steps manually, run:
 
 ```bash
-cd ~/Desktop/nerd-dictation++/scripts
+cd ~/Desktop/nerd-dictation-auto-switch-languages/scripts
 chmod +x setup.sh
 ./setup.sh
 ```

@@ -1,6 +1,6 @@
 # Downloading Language Models
 
-This guide explains how to download and install VOSK language models for nerd-dictation++.
+This guide explains how to download and install VOSK language models for nerd-dictation-auto-switch-languages.
 
 ---
 
@@ -111,7 +111,7 @@ mv vosk-model-de-grpc-0.2 model-de
 Instead of manual steps, use:
 
 ```bash
-cd ~/Desktop/nerd-dictation++/scripts
+cd ~/Desktop/nerd-dictation-auto-switch-languages/scripts
 chmod +x install-models.sh
 ./install-models.sh
 ```

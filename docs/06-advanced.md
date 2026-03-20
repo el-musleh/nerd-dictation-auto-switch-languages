@@ -1,6 +1,6 @@
 # Advanced Options
 
-Customize nerd-dictation++ for your specific needs.
+Customize nerd-dictation-auto-switch-languages for your specific needs.
 
 ---
 

@@ -6,7 +6,7 @@ Set up keyboard shortcuts for seamless voice dictation on your Linux desktop.
 
 ## Overview
 
-After installing nerd-dictation++, configure keyboard shortcuts for:
+After installing nerd-dictation-auto-switch-languages, configure keyboard shortcuts for:
 
 | Shortcut | Action | Script |
 |----------|--------|--------|
@@ -191,7 +191,7 @@ sudo apt install libnotify-bin
 
 Test notifications:
 ```bash
-notify-send "Test" "Hello from nerd-dictation++!"
+notify-send "Test" "Hello from nerd-dictation-auto-switch-languages!"
 ```
 
 ---

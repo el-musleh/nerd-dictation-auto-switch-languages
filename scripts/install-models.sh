@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Model Downloader for nerd-dictation++
+# Model Downloader for nerd-dictation-auto-switch-languages
 # Interactive script to download VOSK models
 #
 

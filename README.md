@@ -1,4 +1,4 @@
-# nerd-dictation++
+# nerd-dictation-auto-switch-languages
 
 **Smart Voice Dictation on Linux: Automatically Detect Keyboard Layout**
 
@@ -39,7 +39,7 @@ A wrapper for [nerd-dictation](https://github.com/ideasman42/nerd-dictation) tha
 ### 1. Run the Setup Script
 
 ```bash
-cd ~/Desktop/nerd-dictation++/scripts
+cd ~/Desktop/nerd-dictation-auto-switch-languages/scripts
 chmod +x setup.sh
 ./setup.sh
 ```
@@ -99,7 +99,7 @@ chmod +x setup.sh
 ## Project Structure
 
 ```
-nerd-dictation++/
+nerd-dictation-auto-switch-languages/
 ├── README.md              # This file
 ├── docs/                 # Detailed documentation
 │   ├── 01-installation.md

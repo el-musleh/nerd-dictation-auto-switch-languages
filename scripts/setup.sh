@@ -1,13 +1,13 @@
 #!/bin/bash
 #
-# nerd-dictation++ Setup Script
+# nerd-dictation-auto-switch-languages Setup Script
 # One-command installation for everything
 #
 
 set -e  # Exit on error
 
 echo "========================================"
-echo "  nerd-dictation++ Setup"
+echo "  nerd-dictation-auto-switch-languages Setup"
 echo "========================================"
 echo ""
 
@@ -117,7 +117,7 @@ mkdir -p "$HOME/.config/nerd-dictation"
 success "Model directory created"
 
 # Step 7: Copy scripts
-info "Copying nerd-dictation++ scripts..."
+info "Copying nerd-dictation-auto-switch-languages scripts..."
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [ -f "$SCRIPT_DIR/dictate-start" ]; then
     cp "$SCRIPT_DIR/dictate-start" "$HOME/nerd-dictation/"
@@ -179,6 +179,6 @@ echo "2. Test manually:"
 echo "   ~/nerd-dictation/dictate-start"
 echo ""
 echo "3. For help, see:"
-echo "   ~/Desktop/nerd-dictation++/docs/"
+echo "   ~/Desktop/nerd-dictation-auto-switch-languages/docs/"
 echo ""
 echo "========================================"

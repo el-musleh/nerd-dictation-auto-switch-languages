@@ -6,7 +6,7 @@ Learn how to set up and manage multiple keyboard layouts for seamless language s
 
 ## Understanding Keyboard Layouts
 
-nerd-dictation++ uses keyboard layout codes to determine which language model to use:
+nerd-dictation-auto-switch-languages uses keyboard layout codes to determine which language model to use:
 
 | Code | Language | Example |
 |------|----------|---------|
@@ -125,7 +125,7 @@ options:    grp:super_space_toggle
 
 ---
 
-## Layout Detection in nerd-dictation++
+## Layout Detection in nerd-dictation-auto-switch-languages
 
 The script detects layouts using `xkblayout-state`:
 
@@ -140,9 +140,9 @@ CURRENT_LAYOUT=$(xkblayout-state print "%s")
 
 ## Adding Your Keyboard Layout Code
 
-nerd-dictation++ uses these layout codes by default:
+nerd-dictation-auto-switch-languages uses these layout codes by default:
 
-| Your Layout | Code | nerd-dictation++ Mapping |
+| Your Layout | Code | nerd-dictation-auto-switch-languages Mapping |
 |-------------|------|-------------------------|
 | English (US) | `us` | `~/.config/nerd-dictation/model/` |
 | English (UK) | `gb` | `~/.config/nerd-dictation/model-gb/` |

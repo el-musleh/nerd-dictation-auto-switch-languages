@@ -1,6 +1,6 @@
 # Troubleshooting
 
-Solutions to common issues with nerd-dictation++.
+Solutions to common issues with nerd-dictation-auto-switch-languages.
 
 ---
 
@@ -268,7 +268,7 @@ Run this script to gather system information:
 ```bash
 cat << 'EOF' > ~/debug-dictation.sh
 #!/bin/bash
-echo "=== nerd-dictation++ Debug Info ==="
+echo "=== nerd-dictation-auto-switch-languages Debug Info ==="
 echo ""
 echo "OS:"
 cat /etc/os-release | grep PRETTY

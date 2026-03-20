@@ -1,12 +1,12 @@
 # Script Reference
 
-Detailed documentation of the nerd-dictation++ scripts.
+Detailed documentation of the nerd-dictation-auto-switch-languages scripts.
 
 ---
 
 ## Overview
 
-nerd-dictation++ consists of two main scripts:
+nerd-dictation-auto-switch-languages consists of two main scripts:
 
 | Script | Purpose | Location |
 |--------|---------|----------|
