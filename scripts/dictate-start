@@ -1,0 +1,92 @@
+#!/bin/bash
+#
+# Smart Dictation Starter
+# Detects keyboard layout using xkblayout-state and runs the appropriate VOSK model
+#
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+NERD_DICTATION="$SCRIPT_DIR/nerd-dictation"
+STATE_FILE="$HOME/.dictate-state"
+MODEL_BASE="$HOME/.config/nerd-dictation"
+TIMEOUT=30
+
+# Parse arguments
+VERBOSE=false
+if [ "$1" = "--verbose" ] || [ "$1" = "-v" ]; then
+    VERBOSE=true
+    exec > >(tee /tmp/dictate-start.log) 2>&1
+    echo "=== Verbose mode enabled ==="
+fi
+
+# Ensure nerd-dictation exists
+if [ ! -f "$NERD_DICTATION" ]; then
+    zenity --error --title="Dictation Error" --text="nerd-dictation not found at:\n$NERD_DICTATION"
+    exit 1
+fi
+
+# Check if already running
+if [ -f "$STATE_FILE" ]; then
+    PID=$(grep "^PID:" "$STATE_FILE" 2>/dev/null | cut -d: -f2)
+    if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
+        zenity --info --title="Dictation" --text="Dictation is already running.\nPress Super+Shift+H to stop first."
+        exit 1
+    else
+        rm -f "$STATE_FILE"
+    fi
+fi
+
+# Get current keyboard layout using xkblayout-state
+CURRENT_LAYOUT=$(xkblayout-state print "%s" 2>/dev/null | tr -d ' ')
+
+if [ -z "$CURRENT_LAYOUT" ]; then
+    zenity --error --title="Dictation Error" --text="Could not detect keyboard layout.\nIs xkblayout-state installed?"
+    exit 1
+fi
+
+# Map layout to model
+case "$CURRENT_LAYOUT" in
+    us)
+        MODEL_DIR="$MODEL_BASE/model"
+        LANG_NAME="English"
+        LANG_CODE="us"
+        ;;
+    ara)
+        MODEL_DIR="$MODEL_BASE/model-ar"
+        LANG_NAME="Arabic"
+        LANG_CODE="ara"
+        ;;
+    *)
+        zenity --error --title="Unsupported Layout" --text="Unsupported keyboard layout: $CURRENT_LAYOUT\n\nSupported layouts:\n• us (English)\n• ara (Arabic)"
+        notify-send "Dictation Failed" "Unsupported layout: $CURRENT_LAYOUT" --icon=dialog-error --app-name="nerd-dictation" 2>/dev/null
+        exit 1
+        ;;
+esac
+
+# Check if model exists
+if [ ! -d "$MODEL_DIR" ]; then
+    zenity --error --title="Model Not Found" --text="$LANG_NAME model not installed.\n\nPath: $MODEL_DIR\n\nDownload from:\nhttps://alphacephei.com/vosk/models"
+    notify-send "Dictation Failed" "$LANG_NAME model not found" --icon=dialog-error --app-name="nerd-dictation" 2>/dev/null
+    exit 1
+fi
+
+# Kill any orphaned dictation processes
+pkill -f "nerd-dictation begin" 2>/dev/null
+sleep 0.3
+
+# Start dictation with timeout
+"$NERD_DICTATION" begin --vosk-model-dir="$MODEL_DIR" --timeout=$TIMEOUT &
+PID=$!
+
+# Save state
+cat > "$STATE_FILE" << EOF
+PID:$PID
+LANG:$LANG_CODE
+LANG_NAME:$LANG_NAME
+TIME:$(date +%s)
+EOF
+
+# Show notification
+notify-send "Dictation Started" "$LANG_NAME dictation is now listening..." --icon=microphone --app-name="nerd-dictation" 2>/dev/null || true
+
+echo "Started $LANG_NAME dictation (PID: $PID, timeout: ${TIMEOUT}s)"
+exit 0

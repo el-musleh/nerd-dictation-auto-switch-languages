@@ -1,0 +1,42 @@
+# Logs
+*.log
+/tmp/dictate-start.log
+/tmp/nerd-dictation.log
+
+# State files
+.dictate-state
+*.state
+
+# Downloaded models (too large for git)
+# Uncomment if you want to track model configs only
+# ~/.config/nerd-dictation/model/
+# ~/.config/nerd-dictation/model-ar/
+# ~/.config/nerd-dictation/model-de/
+
+# Temporary files
+*.tmp
+*.bak
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Downloaded ZIP files
+*.zip
+
+# Model directories (sample - comment out to track empty dirs)
+# model/
+# model-ar/
+# model-de/
