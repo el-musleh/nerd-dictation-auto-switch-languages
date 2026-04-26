@@ -21,7 +21,7 @@ fi
 
 # Ensure nerd-dictation exists
 if [ ! -f "$NERD_DICTATION" ]; then
-    zenity --error --title="Dictation Error" --text="nerd-dictation not found at:\n$NERD_DICTATION"
+    zenity --error --title="Dictation Error" --text="nerd-dictation not found at:\n$NERD_DICTATION\n\nRun setup.sh to install."
     exit 1
 fi
 
@@ -42,6 +42,26 @@ CURRENT_LAYOUT=$(xkblayout-state print "%s" 2>/dev/null | tr -d ' ')
 if [ -z "$CURRENT_LAYOUT" ]; then
     zenity --error --title="Dictation Error" --text="Could not detect keyboard layout.\nIs xkblayout-state installed?"
     exit 1
+fi
+
+# Auto-detect audio recording tool: prefer parec (PulseAudio/PipeWire-pulse),
+# fall back to pw-cat (native PipeWire), then sox.
+if command -v parec &>/dev/null; then
+    INPUT_METHOD="PAREC"
+elif command -v pw-cat &>/dev/null; then
+    INPUT_METHOD="PW-CAT"
+elif command -v sox &>/dev/null; then
+    INPUT_METHOD="SOX"
+else
+    zenity --error --title="Dictation Error" --text="No audio recording tool found.\n\nInstall one of:\n  sudo apt install pulseaudio-utils\n  sudo apt install pipewire-audio-client-libraries"
+    exit 1
+fi
+
+# Auto-detect GPU: use CUDA if nvidia-smi reports a GPU, otherwise CPU.
+if command -v nvidia-smi &>/dev/null && nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | grep -q .; then
+    WHISPER_DEVICE="cuda"
+else
+    WHISPER_DEVICE="cpu"
 fi
 
 # Map layout to engine and model settings
@@ -85,13 +105,18 @@ if [ "$USE_WHISPER" = "true" ]; then
     "$NERD_DICTATION" begin \
         --engine WHISPER \
         --whisper-model "$WHISPER_MODEL" \
+        --whisper-device "$WHISPER_DEVICE" \
         --language "$WHISPER_LANG" \
         --simulate-input-tool "$WHISPER_TOOL" \
+        --input "$INPUT_METHOD" \
         --timeout=$TIMEOUT \
         --verbose 1 >> /tmp/nerd-dictation-ar.log 2>&1 &
 else
     ENGINE="VOSK"
-    "$NERD_DICTATION" begin --vosk-model-dir="$MODEL_DIR" --timeout=$TIMEOUT &
+    "$NERD_DICTATION" begin \
+        --vosk-model-dir="$MODEL_DIR" \
+        --input "$INPUT_METHOD" \
+        --timeout=$TIMEOUT &
 fi
 PID=$!
 
@@ -113,5 +138,5 @@ else
     notify-send "Dictation Started" "$LANG_NAME dictation is now listening..." --icon=microphone --app-name="nerd-dictation" 2>/dev/null || true
 fi
 
-echo "Started $LANG_NAME dictation (PID: $PID, engine: $ENGINE, timeout: ${TIMEOUT}s)"
+echo "Started $LANG_NAME dictation (PID: $PID, engine: $ENGINE, input: $INPUT_METHOD, timeout: ${TIMEOUT}s)"
 exit 0

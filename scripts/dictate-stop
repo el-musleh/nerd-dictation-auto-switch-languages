@@ -21,6 +21,10 @@ LANG=$(grep "^LANG:" "$STATE_FILE" 2>/dev/null | cut -d: -f2)
 LANG_NAME=$(grep "^LANG_NAME:" "$STATE_FILE" 2>/dev/null | cut -d: -f2)
 PID=$(grep "^PID:" "$STATE_FILE" 2>/dev/null | cut -d: -f2)
 ENGINE=$(grep "^ENGINE:" "$STATE_FILE" 2>/dev/null | cut -d: -f2)
+# Default ENGINE to VOSK if not recorded (state file from older install)
+if [ -z "$ENGINE" ]; then
+    ENGINE="VOSK"
+fi
 
 if [ -z "$LANG" ]; then
     rm -f "$STATE_FILE"

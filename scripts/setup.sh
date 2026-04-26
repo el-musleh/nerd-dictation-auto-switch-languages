@@ -64,8 +64,10 @@ case $OS in
             python3-pip \
             xdotool \
             xsel \
+            x11-utils \
             zenity \
             libnotify-bin \
+            pulseaudio-utils \
             wget \
             unzip \
             git
@@ -75,8 +77,10 @@ case $OS in
             python3-pip \
             xdotool \
             xsel \
+            xprop \
             zenity \
             libnotify \
+            pulseaudio-utils \
             wget \
             unzip \
             git
@@ -86,8 +90,10 @@ case $OS in
             python-pip \
             xdotool \
             xsel \
+            xorg-xprop \
             zenity \
             libnotify \
+            pulseaudio \
             wget \
             unzip \
             git
@@ -95,10 +101,28 @@ case $OS in
     *)
         error "Unsupported OS: $OS"
         info "Please install these manually:"
-        info "  python3-pip xdotool xsel zenity libnotify-bin wget unzip git"
+        info "  python3-pip xdotool xsel x11-utils zenity libnotify-bin pulseaudio-utils wget unzip git"
         ;;
 esac
 success "System dependencies installed"
+
+# ---------------------------------------------------------------------------
+# Step 2b: Verify audio recording tool is available
+# ---------------------------------------------------------------------------
+info "Checking audio recording tool..."
+if command -v parec &> /dev/null; then
+    success "parec (PulseAudio) available — audio recording ready"
+elif command -v pw-cat &> /dev/null; then
+    success "pw-cat (PipeWire) available — audio recording ready"
+    info "Note: dictate-start will auto-detect and use pw-cat"
+elif command -v sox &> /dev/null; then
+    success "sox available — audio recording ready"
+    info "Note: dictate-start will auto-detect and use sox"
+else
+    error "No audio recording tool found (tried: parec, pw-cat, sox)"
+    info "On PipeWire-only systems, install: sudo apt install pipewire-audio-client-libraries"
+    info "Or install PulseAudio utils: sudo apt install pulseaudio-utils"
+fi
 
 # ---------------------------------------------------------------------------
 # Step 3: Install xkblayout-state (keyboard layout detector)
@@ -106,13 +130,23 @@ success "System dependencies installed"
 info "Installing xkblayout-state..."
 if ! command -v xkblayout-state &> /dev/null; then
     TEMP_DIR=$(mktemp -d)
-    git clone https://github.com/nonpop/xkblayout-state.git "$TEMP_DIR/xkblayout-state"
-    cd "$TEMP_DIR/xkblayout-state"
-    make
-    sudo make install
-    cd ~
-    rm -rf "$TEMP_DIR"
-    success "xkblayout-state installed"
+    if ! git clone https://github.com/nonpop/xkblayout-state.git "$TEMP_DIR/xkblayout-state"; then
+        error "Failed to clone xkblayout-state — check internet connection"
+        rm -rf "$TEMP_DIR"
+    else
+        cd "$TEMP_DIR/xkblayout-state"
+        if ! make; then
+            error "xkblayout-state build failed — ensure gcc and libx11-dev are installed"
+            info "  sudo apt install gcc libx11-dev"
+            cd ~
+            rm -rf "$TEMP_DIR"
+        else
+            sudo make install
+            cd ~
+            rm -rf "$TEMP_DIR"
+            success "xkblayout-state installed"
+        fi
+    fi
 else
     success "xkblayout-state already installed"
 fi
@@ -122,9 +156,9 @@ fi
 #   vosk          — English speech recognition (offline, fast)
 #   faster-whisper — Arabic speech recognition (much more accurate than VOSK)
 # ---------------------------------------------------------------------------
-info "Installing Python packages (vosk + faster-whisper)..."
-pip3 install vosk faster-whisper --break-system-packages 2>/dev/null \
-    || pip3 install vosk faster-whisper
+info "Installing Python packages (vosk + numpy + faster-whisper)..."
+pip3 install vosk numpy faster-whisper --break-system-packages 2>/dev/null \
+    || pip3 install vosk numpy faster-whisper
 success "Python packages installed"
 
 # ---------------------------------------------------------------------------
@@ -162,7 +196,13 @@ if [ -f "$SCRIPT_DIR/dictate-start" ]; then
     cp "$SCRIPT_DIR/dictate-stop"  "$HOME/nerd-dictation/dictate-stop"
     chmod +x "$HOME/nerd-dictation/dictate-start"
     chmod +x "$HOME/nerd-dictation/dictate-stop"
-    success "Scripts installed to ~/nerd-dictation/"
+    # Verify permissions
+    if [ -x "$HOME/nerd-dictation/dictate-start" ] && [ -x "$HOME/nerd-dictation/dictate-stop" ]; then
+        success "Scripts installed to ~/nerd-dictation/"
+    else
+        error "Scripts installed but chmod failed — run manually:"
+        info "  chmod +x ~/nerd-dictation/dictate-start ~/nerd-dictation/dictate-stop"
+    fi
 else
     error "Scripts not found in $SCRIPT_DIR — please copy manually"
 fi
@@ -193,17 +233,19 @@ fi
 # but pre-downloading it here avoids a delay the first time Arabic dictation
 # is started.
 # ---------------------------------------------------------------------------
-info "Pre-downloading Whisper Arabic model (small, ~460 MB)..."
+info "Pre-downloading Whisper Arabic model (small, ~244 MB)..."
 echo -n "Download now? Saves time on first Arabic dictation use. (y/n): "
 read -r response
 if [ "$response" = "y" ] || [ "$response" = "Y" ]; then
     python3 -c "
 from faster_whisper import WhisperModel
-print('Downloading Whisper small model...')
+print('Downloading Whisper small model (~244 MB)...')
 WhisperModel('small', device='cpu', compute_type='int8')
 print('Done.')
-"
-    success "Whisper small model cached"
+" && success "Whisper small model cached" || {
+        error "Whisper model download failed — check internet connection"
+        info "You can retry later: python3 -c \"from faster_whisper import WhisperModel; WhisperModel('small', device='cpu', compute_type='int8')\""
+    }
 else
     info "Skipped — will download automatically on first Arabic dictation"
 fi

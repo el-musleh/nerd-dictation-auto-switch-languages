@@ -1,23 +1,27 @@
 #!/bin/bash
 #
 # Model Downloader for nerd-dictation-auto-switch-languages
-# Interactive script to download VOSK models
+# Downloads VOSK models for English and other languages.
+#
+# Note: Arabic uses Whisper (faster-whisper), NOT VOSK.
+# The Whisper model downloads automatically on first Arabic dictation.
 #
 
 echo "========================================"
 echo "  Model Downloader"
 echo "========================================"
 echo ""
+echo "Note: Arabic uses Whisper (auto-downloaded on first use)."
+echo "This script downloads VOSK models for English and other languages."
+echo ""
 
 MODEL_DIR="$HOME/.config/nerd-dictation"
 mkdir -p "$MODEL_DIR"
 
-# Available models
+# Available VOSK models (Arabic removed — Arabic uses Whisper instead)
 declare -A MODELS=(
     ["en-small"]="vosk-model-small-en-us-0.15"
     ["en-large"]="vosk-model-en-us-0.22"
-    ["ar-small"]="vosk-model-ar-mgb2-0.4"
-    ["ar-large"]="vosk-model-ar-0.22-linto-1.1.0"
     ["de"]="vosk-model-de-grpc-0.2"
     ["fr"]="vosk-model-fr-0.22"
     ["es"]="vosk-model-es-0.42"
@@ -26,10 +30,8 @@ declare -A MODELS=(
 )
 
 declare -A MODEL_NAMES=(
-    ["en-small"]="English (Small, 40MB)"
-    ["en-large"]="English (Large, 1.8GB)"
-    ["ar-small"]="Arabic (Small, 333MB)"
-    ["ar-large"]="Arabic (Large, 1.3GB)"
+    ["en-small"]="English (Small, 40MB) — recommended"
+    ["en-large"]="English (Large, 1.8GB) — high accuracy"
     ["de"]="German (45MB)"
     ["fr"]="French (45MB)"
     ["es"]="Spanish (45MB)"
@@ -40,8 +42,6 @@ declare -A MODEL_NAMES=(
 declare -A MODEL_URLS=(
     ["en-small"]="https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip"
     ["en-large"]="https://alphacephei.com/vosk/models/vosk-model-en-us-0.22.zip"
-    ["ar-small"]="https://alphacephei.com/vosk/models/vosk-model-ar-mgb2-0.4.zip"
-    ["ar-large"]="https://alphacephei.com/vosk/models/vosk-model-ar-0.22-linto-1.1.0.zip"
     ["de"]="https://alphacephei.com/vosk/models/vosk-model-de-grpc-0.2.zip"
     ["fr"]="https://alphacephei.com/vosk/models/vosk-model-fr-0.22.zip"
     ["es"]="https://alphacephei.com/vosk/models/vosk-model-es-0.42.zip"
@@ -53,7 +53,9 @@ declare -A MODEL_URLS=(
 echo "Available models:"
 echo ""
 i=1
-for key in "${!MODEL_NAMES[@]}"; do
+declare -a KEYS_ORDERED
+for key in en-small en-large de fr es ru zh; do
+    KEYS_ORDERED+=("$key")
     folder="${MODELS[$key]}"
     if [ -d "$MODEL_DIR/$folder" ]; then
         status="[Installed]"
@@ -74,14 +76,13 @@ if [ "$selection" = "q" ] || [ "$selection" = "Q" ]; then
     exit 0
 fi
 
-# Convert selection to key
-keys=("${!MODEL_NAMES[@]}")
-selected_key="${keys[$((selection-1))]}"
-
-if [ -z "$selected_key" ]; then
+# Convert selection to key (1-based index into ordered array)
+if ! [[ "$selection" =~ ^[0-9]+$ ]] || [ "$selection" -lt 1 ] || [ "$selection" -gt "${#KEYS_ORDERED[@]}" ]; then
     echo "Invalid selection."
     exit 1
 fi
+
+selected_key="${KEYS_ORDERED[$((selection-1))]}"
 
 # Download model
 echo ""

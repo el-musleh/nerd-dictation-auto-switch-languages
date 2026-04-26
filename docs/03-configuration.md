@@ -142,17 +142,16 @@ CURRENT_LAYOUT=$(xkblayout-state print "%s")
 
 nerd-dictation-auto-switch-languages uses these layout codes by default:
 
-| Your Layout | Code | nerd-dictation-auto-switch-languages Mapping |
-|-------------|------|-------------------------|
-| English (US) | `us` | `~/.config/nerd-dictation/model/` |
-| English (UK) | `gb` | `~/.config/nerd-dictation/model-gb/` |
-| Arabic | `ara` | `~/.config/nerd-dictation/model-ar/` |
-| German | `de` | `~/.config/nerd-dictation/model-de/` |
-| French | `fr` | `~/.config/nerd-dictation/model-fr/` |
+| Your Layout | Code | Engine | Model Path |
+|-------------|------|--------|-----------|
+| English (US) | `us` | VOSK | `~/.config/nerd-dictation/model/` |
+| Arabic | `ara` | Whisper | Auto-downloaded to `~/.cache/huggingface/hub/` |
 
-### To Add a New Layout:
+### Adding a New VOSK Language
 
-Edit `dictate-start` and add a case:
+1. Download a VOSK model for your language (see [Language Models](02-models.md)).
+2. Place it in `~/.config/nerd-dictation/model-XX/` (where `XX` is your language code).
+3. Edit `~/nerd-dictation/dictate-start` and add a case:
 
 ```bash
 case "$CURRENT_LAYOUT" in
@@ -162,9 +161,12 @@ case "$CURRENT_LAYOUT" in
         LANG_CODE="us"
         ;;
     ara)
-        MODEL_DIR="$MODEL_BASE/model-ar"
         LANG_NAME="Arabic"
         LANG_CODE="ara"
+        USE_WHISPER=true
+        WHISPER_MODEL="small"
+        WHISPER_LANG="ar"
+        WHISPER_TOOL="CLIPBOARD"
         ;;
     # ADD YOUR NEW LAYOUT HERE:
     fr)
@@ -177,6 +179,8 @@ case "$CURRENT_LAYOUT" in
         ;;
 esac
 ```
+
+> **Note**: Arabic uses Whisper (`USE_WHISPER=true`), not a VOSK model directory. Other languages use VOSK with a `MODEL_DIR` path.
 
 ---
 
