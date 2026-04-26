@@ -1,7 +1,15 @@
 #!/bin/bash
 #
 # nerd-dictation-auto-switch-languages Setup Script
-# One-command installation for everything
+# One-command installation for everything.
+#
+# What this installs:
+#   - System tools: xdotool, xsel, zenity, libnotify
+#   - xkblayout-state (keyboard layout detector)
+#   - Python: vosk (English), faster-whisper (Arabic)
+#   - nerd-dictation (patched version with Whisper + CLIPBOARD support)
+#   - dictate-start / dictate-stop scripts
+#   - English VOSK model (auto-downloaded)
 #
 
 set -e  # Exit on error
@@ -17,10 +25,9 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# Functions
 success() { echo -e "${GREEN}✓${NC} $1"; }
-info() { echo -e "${YELLOW}ℹ${NC} $1"; }
-error() { echo -e "${RED}✗${NC} $1"; }
+info()    { echo -e "${YELLOW}ℹ${NC} $1"; }
+error()   { echo -e "${RED}✗${NC} $1"; }
 
 # Check if running as root
 if [ "$EUID" -eq 0 ]; then
@@ -28,7 +35,11 @@ if [ "$EUID" -eq 0 ]; then
     exit 1
 fi
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# ---------------------------------------------------------------------------
 # Step 1: Detect OS
+# ---------------------------------------------------------------------------
 info "Detecting operating system..."
 if [ -f /etc/os-release ]; then
     . /etc/os-release
@@ -38,7 +49,13 @@ else
 fi
 success "Detected: $OS"
 
+# ---------------------------------------------------------------------------
 # Step 2: Install system dependencies
+#   xdotool  — simulate keystrokes (English output, backspace)
+#   xsel     — clipboard tool used to paste Arabic text (RTL-safe)
+#   zenity   — GUI dialogs for error messages
+#   libnotify — desktop notifications
+# ---------------------------------------------------------------------------
 info "Installing system dependencies..."
 case $OS in
     ubuntu|debian|linuxmint)
@@ -46,6 +63,7 @@ case $OS in
         sudo apt install -y \
             python3-pip \
             xdotool \
+            xsel \
             zenity \
             libnotify-bin \
             wget \
@@ -56,6 +74,7 @@ case $OS in
         sudo dnf install -y \
             python3-pip \
             xdotool \
+            xsel \
             zenity \
             libnotify \
             wget \
@@ -66,6 +85,7 @@ case $OS in
         sudo pacman -S --noconfirm \
             python-pip \
             xdotool \
+            xsel \
             zenity \
             libnotify \
             wget \
@@ -74,19 +94,20 @@ case $OS in
         ;;
     *)
         error "Unsupported OS: $OS"
-        info "Please install dependencies manually:"
-        info "  python3-pip, xdotool, zenity, libnotify-bin, wget, unzip, git"
+        info "Please install these manually:"
+        info "  python3-pip xdotool xsel zenity libnotify-bin wget unzip git"
         ;;
 esac
 success "System dependencies installed"
 
-# Step 3: Install xkblayout-state
+# ---------------------------------------------------------------------------
+# Step 3: Install xkblayout-state (keyboard layout detector)
+# ---------------------------------------------------------------------------
 info "Installing xkblayout-state..."
 if ! command -v xkblayout-state &> /dev/null; then
     TEMP_DIR=$(mktemp -d)
-    cd "$TEMP_DIR"
-    git clone https://github.com/nonpop/xkblayout-state.git
-    cd xkblayout-state
+    git clone https://github.com/nonpop/xkblayout-state.git "$TEMP_DIR/xkblayout-state"
+    cd "$TEMP_DIR/xkblayout-state"
     make
     sudo make install
     cd ~
@@ -96,89 +117,126 @@ else
     success "xkblayout-state already installed"
 fi
 
-# Step 4: Install VOSK
-info "Installing VOSK..."
-pip install vosk --break-system-packages 2>/dev/null || pip install vosk
-success "VOSK installed"
+# ---------------------------------------------------------------------------
+# Step 4: Install Python packages
+#   vosk          — English speech recognition (offline, fast)
+#   faster-whisper — Arabic speech recognition (much more accurate than VOSK)
+# ---------------------------------------------------------------------------
+info "Installing Python packages (vosk + faster-whisper)..."
+pip3 install vosk faster-whisper --break-system-packages 2>/dev/null \
+    || pip3 install vosk faster-whisper
+success "Python packages installed"
 
-# Step 5: Clone nerd-dictation
-info "Installing nerd-dictation..."
-if [ ! -d "$HOME/nerd-dictation" ]; then
-    git clone https://github.com/ideasman42/nerd-dictation.git "$HOME/nerd-dictation"
+# ---------------------------------------------------------------------------
+# Step 5: Install nerd-dictation (patched version)
+#
+# This repo ships a patched nerd-dictation that adds:
+#   --engine WHISPER        high-accuracy Arabic via faster-whisper
+#   --simulate-input-tool CLIPBOARD  RTL-safe paste using xsel
+#   Arabic-aware text processing (no incorrect English capitalization)
+#   "Dictation Ready" notification once model is loaded (not just started)
+# ---------------------------------------------------------------------------
+info "Installing nerd-dictation (patched)..."
+mkdir -p "$HOME/nerd-dictation"
+
+if [ -f "$SCRIPT_DIR/nerd-dictation" ]; then
+    cp "$SCRIPT_DIR/nerd-dictation" "$HOME/nerd-dictation/nerd-dictation"
     chmod +x "$HOME/nerd-dictation/nerd-dictation"
-    success "nerd-dictation cloned"
+    success "Patched nerd-dictation installed"
 else
-    success "nerd-dictation already exists"
+    # Fallback: clone from upstream and warn user
+    error "Patched nerd-dictation not found in $SCRIPT_DIR"
+    info "Falling back to upstream nerd-dictation (Arabic Whisper support will be missing)"
+    if [ ! -f "$HOME/nerd-dictation/nerd-dictation" ]; then
+        git clone https://github.com/ideasman42/nerd-dictation.git "$HOME/nerd-dictation"
+    fi
+    chmod +x "$HOME/nerd-dictation/nerd-dictation"
 fi
 
-# Step 6: Create model directory
-info "Creating model directory..."
-mkdir -p "$HOME/.config/nerd-dictation"
-success "Model directory created"
-
-# Step 7: Copy scripts
-info "Copying nerd-dictation-auto-switch-languages scripts..."
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# ---------------------------------------------------------------------------
+# Step 6: Copy dictate-start and dictate-stop scripts
+# ---------------------------------------------------------------------------
+info "Installing dictate-start and dictate-stop..."
 if [ -f "$SCRIPT_DIR/dictate-start" ]; then
-    cp "$SCRIPT_DIR/dictate-start" "$HOME/nerd-dictation/"
-    cp "$SCRIPT_DIR/dictate-stop" "$HOME/nerd-dictation/"
+    cp "$SCRIPT_DIR/dictate-start" "$HOME/nerd-dictation/dictate-start"
+    cp "$SCRIPT_DIR/dictate-stop"  "$HOME/nerd-dictation/dictate-stop"
     chmod +x "$HOME/nerd-dictation/dictate-start"
     chmod +x "$HOME/nerd-dictation/dictate-stop"
-    success "Scripts copied"
+    success "Scripts installed to ~/nerd-dictation/"
 else
-    info "Scripts not found in $SCRIPT_DIR"
-    info "Please copy scripts manually:"
-    info "  cp dictate-start ~/.config/nerd-dictation/"
-    info "  cp dictate-stop ~/.config/nerd-dictation/"
+    error "Scripts not found in $SCRIPT_DIR — please copy manually"
 fi
 
-# Step 8: Download English model
-info "Downloading English model..."
+# ---------------------------------------------------------------------------
+# Step 7: Create model directory and download English model
+# ---------------------------------------------------------------------------
+info "Setting up model directory..."
+mkdir -p "$HOME/.config/nerd-dictation"
+success "Model directory ready: ~/.config/nerd-dictation/"
+
+info "Downloading English VOSK model (small, ~40 MB)..."
 if [ ! -d "$HOME/.config/nerd-dictation/model" ]; then
     cd "$HOME/.config/nerd-dictation"
-    wget -q https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip
-    unzip -o vosk-model-small-en-us-0.15.zip
+    wget -q --show-progress https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip
+    unzip -q vosk-model-small-en-us-0.15.zip
     mv vosk-model-small-en-us-0.15 model
     rm vosk-model-small-en-us-0.15.zip
-    success "English model downloaded"
+    success "English model installed"
 else
-    success "English model already exists"
+    success "English model already installed"
 fi
 
-# Step 9: Download Arabic model (optional)
-info "Downloading Arabic model..."
-if [ ! -d "$HOME/.config/nerd-dictation/model-ar" ]; then
-    echo -n "Download Arabic model? (y/n): "
-    read -r response
-    if [ "$response" = "y" ] || [ "$response" = "Y" ]; then
-        wget -q https://alphacephei.com/vosk/models/vosk-model-ar-mgb2-0.4.zip
-        unzip -o vosk-model-ar-mgb2-0.4.zip
-        mv vosk-model-ar-mgb2-0.4 model-ar
-        rm vosk-model-ar-mgb2-0.4.zip
-        success "Arabic model downloaded"
-    else
-        info "Skipped Arabic model"
-    fi
+# ---------------------------------------------------------------------------
+# Step 8: Pre-download the Whisper Arabic model (optional)
+#
+# The 'small' Whisper model (~460 MB) downloads automatically on first use,
+# but pre-downloading it here avoids a delay the first time Arabic dictation
+# is started.
+# ---------------------------------------------------------------------------
+info "Pre-downloading Whisper Arabic model (small, ~460 MB)..."
+echo -n "Download now? Saves time on first Arabic dictation use. (y/n): "
+read -r response
+if [ "$response" = "y" ] || [ "$response" = "Y" ]; then
+    python3 -c "
+from faster_whisper import WhisperModel
+print('Downloading Whisper small model...')
+WhisperModel('small', device='cpu', compute_type='int8')
+print('Done.')
+"
+    success "Whisper small model cached"
 else
-    success "Arabic model already exists"
+    info "Skipped — will download automatically on first Arabic dictation"
 fi
 
+# ---------------------------------------------------------------------------
 # Summary
+# ---------------------------------------------------------------------------
 echo ""
 echo "========================================"
 echo "  Setup Complete!"
 echo "========================================"
 echo ""
+echo "Installed to: ~/nerd-dictation/"
+echo ""
+echo "How it works:"
+echo "  English keyboard layout → VOSK (offline, instant)"
+echo "  Arabic keyboard layout  → Whisper (high accuracy)"
+echo ""
 echo "Next steps:"
 echo ""
-echo "1. Set up keyboard shortcuts in your desktop:"
-echo "   - Super+H: Start dictation"
-echo "   - Super+Shift+H: Stop dictation"
+echo "1. Set keyboard shortcuts in your desktop settings:"
+echo "   Start: ~/nerd-dictation/dictate-start"
+echo "   Stop:  ~/nerd-dictation/dictate-stop"
 echo ""
-echo "2. Test manually:"
+echo "2. Test English (switch to English layout first):"
 echo "   ~/nerd-dictation/dictate-start"
 echo ""
-echo "3. For help, see:"
-echo "   ~/Desktop/nerd-dictation-auto-switch-languages/docs/"
+echo "3. Test Arabic (switch to Arabic layout first):"
+echo "   ~/nerd-dictation/dictate-start"
+echo "   Wait for 'Dictation Ready' notification, then speak."
 echo ""
+echo "4. Debug Arabic issues:"
+echo "   cat /tmp/nerd-dictation-ar.log"
+echo ""
+echo "For full documentation see: docs/"
 echo "========================================"

@@ -6,8 +6,6 @@ Solutions to common issues with nerd-dictation-auto-switch-languages.
 
 ## Quick Diagnostics
 
-Before troubleshooting, run these commands to understand your setup:
-
 ```bash
 # Check keyboard layout detection
 xkblayout-state print "%s"
@@ -15,324 +13,257 @@ xkblayout-state print "%s"
 # Verify scripts are executable
 ls -la ~/nerd-dictation/dictate-*
 
-# Check models directory
-ls ~/.config/nerd-dictation/
+# Check English model exists
+ls ~/.config/nerd-dictation/model/
 
-# View latest logs
-tail -20 /tmp/dictate-start.log
+# View Arabic session log (transcription output, errors)
+cat /tmp/nerd-dictation-ar.log
+
+# View English session log (verbose mode)
+cat /tmp/dictate-start.log
 ```
 
 ---
 
-## Common Issues
+## Arabic Dictation Issues
+
+### Issue: Arabic text not appearing after speaking
+
+**Step 1 — Check the log:**
+```bash
+cat /tmp/nerd-dictation-ar.log
+```
+
+Look for one of these lines:
+
+| Log line | Meaning |
+|----------|---------|
+| `Loading Whisper model...` | Model is loading — wait for "Dictation Ready" notification before speaking |
+| `Transcribing X.X seconds of audio...` | Recording captured audio, transcription running |
+| `Transcribed: 'some text'` | Transcription worked — if text didn't appear, it's an output issue |
+| `Transcribed: ''` | No speech detected — microphone issue or spoke before "Ready" notification |
+| `No text found in the audio` | Empty transcription, no text to output |
+
+**Step 2 — If `Transcribed:` shows text but nothing appeared:**
+
+The text was recognised but the paste step failed. Common causes:
+
+- **Wrong paste shortcut for your app**: Arabic uses clipboard paste (`Ctrl+V` for GUI apps, `Ctrl+Shift+V` for terminals). The script auto-detects this, but if the detection fails, paste manually: the transcribed text is in your clipboard.
+- **Focus changed during transcription**: Transcription takes 2–5 seconds. Make sure you're focused on the target window when you hear the "Dictation Stopped" notification.
+
+**Step 3 — If `Transcribed:` shows `''` (empty):**
+
+The microphone captured audio but Whisper found no speech. Check:
+```bash
+# Is your microphone working?
+arecord -d 3 /tmp/test.wav && aplay /tmp/test.wav
+
+# Did you speak AFTER "Dictation Ready" notification?
+# "Dictation Loading" means the model is still loading — speech is not recorded yet.
+```
+
+---
+
+### Issue: "Dictation Loading" notification but never "Dictation Ready"
+
+**Cause**: The Whisper model is downloading for the first time (first Arabic dictation ever).
+
+**What to do**: Wait. The `small` model (~244 MB) downloads once and is cached. Subsequent sessions load in 2–5 seconds.
+
+**To pre-download manually:**
+```bash
+python3 -c "from faster_whisper import WhisperModel; WhisperModel('small', device='cpu', compute_type='int8')"
+```
+
+---
+
+### Issue: `faster-whisper` not installed
+
+**Symptom**: Log shows `faster-whisper is required for the Whisper engine`
+
+**Fix:**
+```bash
+pip3 install faster-whisper --break-system-packages
+```
+
+---
+
+### Issue: `xsel` not installed (clipboard paste fails)
+
+**Symptom**: Log shows `xsel failed to set clipboard`
+
+**Fix:**
+```bash
+sudo apt install xsel        # Ubuntu/Debian
+sudo dnf install xsel        # Fedora
+sudo pacman -S xsel          # Arch
+```
+
+---
+
+## English Dictation Issues
 
 ### Issue: "nerd-dictation not found"
 
 **Symptom**: Error popup: "nerd-dictation not found at: /home/..."
 
-**Cause**: Script can't find the base nerd-dictation installation
-
-**Solution**:
+**Fix:**
 ```bash
-# Verify nerd-dictation exists
+# Check the script exists
 ls ~/nerd-dictation/nerd-dictation
 
-# If missing, reinstall
-git clone https://github.com/ideasman42/nerd-dictation.git ~/nerd-dictation
-chmod +x ~/nerd-dictation/nerd-dictation
+# If missing, re-run setup
+cd ~/Desktop/nerd-dictation-auto-switch-languages/scripts
+./setup.sh
 ```
 
 ---
 
-### Issue: "Could not detect keyboard layout"
+### Issue: "Model not installed" for English
 
-**Symptom**: Error popup when starting dictation
+**Symptom**: Error popup about English model missing
 
-**Cause**: `xkblayout-state` not installed or not working
-
-**Solution**:
+**Fix:**
 ```bash
-# Test if xkblayout-state works
-xkblayout-state print "%s"
-
-# If not, install it
-git clone https://github.com/nonpop/xkblayout-state.git
-cd xkblayout-state
-make
-sudo make install
-
-# Log out and back in
-```
-
----
-
-### Issue: "Unsupported keyboard layout"
-
-**Symptom**: Error popup showing your layout is not supported
-
-**Cause**: Layout not added to `dictate-start` script
-
-**Solution 1**: Add the layout to the script:
-```bash
-nano ~/nerd-dictation/dictate-start
-```
-Add a case for your layout:
-```bash
-case "$CURRENT_LAYOUT" in
-    us) # existing ;;
-    ara) # existing ;;
-    YOUR_CODE)
-        MODEL_DIR="$MODEL_BASE/model-yourlang"
-        LANG_NAME="Your Language"
-        LANG_CODE="YOUR_CODE"
-        ;;
-esac
-```
-
-**Solution 2**: Install the model for a supported layout
-
----
-
-### Issue: "Model not installed"
-
-**Symptom**: Error popup: "English/Arabic model not installed"
-
-**Cause**: Model folder missing or corrupted
-
-**Solution**:
-```bash
-# Check what models exist
-ls ~/.config/nerd-dictation/
-
-# Download English model
+mkdir -p ~/.config/nerd-dictation
 cd ~/.config/nerd-dictation
 wget https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip
 unzip vosk-model-small-en-us-0.15.zip
 mv vosk-model-small-en-us-0.15 model
-
-# Download Arabic model
-wget https://alphacephei.com/vosk/models/vosk-model-ar-mgb2-0.4.zip
-unzip vosk-model-ar-mgb2-0.4.zip
-mv vosk-model-ar-mgb2-0.4 model-ar
 ```
 
 ---
 
-### Issue: Dictation Not Typing Text
+### Issue: English dictation produces no text
 
-**Symptom**: Dictation starts but no text appears
+**Symptom**: Dictation starts and stops but nothing is typed
 
-**Cause**: `xdotool` not working properly
-
-**Solution**:
+**Check:**
 ```bash
 # Test xdotool
 xdotool type "hello"
 
-# Install if missing
-sudo apt install xdotool
-
-# Check for Wayland (xdotool won't work on Wayland)
+# Check for Wayland (xdotool doesn't work on Wayland)
 echo $XDG_SESSION_TYPE
-# If says "wayland", you need wtype instead
+# If "wayland": add --simulate-input-tool WTYPE to the VOSK start command in dictate-start
 ```
 
 ---
 
-### Issue: Notification Not Showing
+## Common Issues (Both Languages)
 
-**Symptom**: No desktop notification when starting/stopping
+### Issue: "Could not detect keyboard layout"
 
-**Cause**: `libnotify` not installed or notification daemon not running
-
-**Solution**:
+**Fix:**
 ```bash
-# Install libnotify
-sudo apt install libnotify-bin
+# Test detection
+xkblayout-state print "%s"
 
-# Test notifications
-notify-send "Test" "Hello!"
-
-# Check notification daemon
-ps aux | grep -E "notify|notification"
-```
-
----
-
-### Issue: Script Works in Terminal But Not From Shortcut
-
-**Symptom**: Running `./dictate-start` works, but keyboard shortcut doesn't
-
-**Cause**: Environment differences when running from desktop
-
-**Solution**:
-```bash
-# Edit your shortcut command to use bash explicitly:
-bash -c "/home/YOUR_USER/nerd-dictation/dictate-start"
-```
-
-In your desktop shortcut settings, set the command to:
-```
-bash -c "~/nerd-dictation/dictate-start"
+# If missing, install
+git clone https://github.com/nonpop/xkblayout-state.git
+cd xkblayout-state && make && sudo make install
 ```
 
 ---
 
 ### Issue: "Dictation already running"
 
-**Symptom**: Can't start new dictation
-
-**Cause**: Previous dictation process still active
-
-**Solution**:
+**Fix:**
 ```bash
-# Force stop all dictation
 pkill -f nerd-dictation
-
-# Remove stale state file
-rm ~/.dictate-state
-
-# Start fresh
+rm -f ~/.dictate-state
 ~/nerd-dictation/dictate-start
 ```
 
 ---
 
-### Issue: Wrong Language Detected
+### Issue: Script works in terminal but not from keyboard shortcut
 
-**Symptom**: Arabic keyboard but English dictation starts (or vice versa)
+**Cause**: Environment variables (like `DISPLAY`) may not be set when the shortcut runs.
 
-**Cause**: Layout detection lagging or unreliable
-
-**Solution 1**: Check actual layout:
-```bash
-xkblayout-state print "%s"
+**Fix**: Set the shortcut command explicitly:
 ```
-
-**Solution 2**: Wait longer between switching layouts and starting dictation
-
-**Solution 3**: Check xkblayout-state is installed correctly:
-```bash
-which xkblayout-state
-xkblayout-state print "%s(%e)"
+bash -c "DISPLAY=:0 ~/nerd-dictation/dictate-start"
 ```
-
----
-
-### Issue: Very Slow Model Loading
-
-**Symptom**: Takes >10 seconds to start dictation
-
-**Cause**: Using large model or slow disk
-
-**Solution**:
-1. Use smaller model:
-   ```bash
-   # Instead of vosk-model-en-us-0.22 (1.8GB)
-   # Use vosk-model-small-en-us-0.15 (40MB)
-   ```
-
-2. Move models to faster storage (SSD)
-
-3. Check disk performance:
-   ```bash
-   hdparm -t /dev/sda
-   ```
 
 ---
 
 ## Debug Mode
 
-Enable verbose logging to see exactly what's happening:
+Run `dictate-start` with `--verbose` to see detailed output:
 
 ```bash
-# Run with verbose
-cd ~/nerd-dictation
-./dictate-start --verbose
+~/nerd-dictation/dictate-start --verbose
+# Logs written to /tmp/dictate-start.log
 
-# In another terminal, watch the log
+# In another terminal:
 tail -f /tmp/dictate-start.log
 
-# Also watch nerd-dictation log
-tail -f /tmp/nerd-dictation.log
+# For Arabic:
+tail -f /tmp/nerd-dictation-ar.log
 ```
 
 ---
 
-## Getting Help
-
-### Collect Debug Info
-
-Run this script to gather system information:
+## Collect Debug Info
 
 ```bash
 cat << 'EOF' > ~/debug-dictation.sh
 #!/bin/bash
 echo "=== nerd-dictation-auto-switch-languages Debug Info ==="
 echo ""
-echo "OS:"
-cat /etc/os-release | grep PRETTY
+echo "OS:"; cat /etc/os-release | grep PRETTY_NAME
 echo ""
-echo "Python:"
-python3 --version
+echo "Python:"; python3 --version
 echo ""
-echo "Keyboard Layout:"
-xkblayout-state print "%s(%e)"
+echo "Keyboard layout:"; xkblayout-state print "%s(%e)" 2>/dev/null || echo "xkblayout-state not found"
 echo ""
-echo "Models:"
-ls -la ~/.config/nerd-dictation/
+echo "Tools:"
+for t in xdotool xsel xkblayout-state parec notify-send zenity; do
+    which $t 2>/dev/null && echo "  $t: OK" || echo "  $t: MISSING"
+done
+echo ""
+echo "Python packages:"
+python3 -c "import vosk; print('  vosk: OK')" 2>/dev/null || echo "  vosk: MISSING"
+python3 -c "import faster_whisper; print('  faster-whisper: OK')" 2>/dev/null || echo "  faster-whisper: MISSING"
+echo ""
+echo "Models (VOSK):"
+ls -la ~/.config/nerd-dictation/ 2>/dev/null || echo "  No models directory"
 echo ""
 echo "Scripts:"
-ls -la ~/nerd-dictation/dictate-*
+ls -la ~/nerd-dictation/dictate-* 2>/dev/null || echo "  Scripts not found"
 echo ""
-echo "xkblayout-state:"
-which xkblayout-state
-echo ""
-echo "Recent Logs:"
-tail -10 /tmp/dictate-start.log 2>/dev/null || echo "No log file"
+echo "Arabic session log (last 20 lines):"
+tail -20 /tmp/nerd-dictation-ar.log 2>/dev/null || echo "  No Arabic log yet"
 EOF
 chmod +x ~/debug-dictation.sh
 ~/debug-dictation.sh
 ```
 
-### Report an Issue
-
-When reporting issues, include:
-1. Output of `~/debug-dictation.sh`
-2. Your desktop environment (Cinnamon, GNOME, KDE, etc.)
-3. Your keyboard layout codes
-4. Steps to reproduce
-
 ---
 
 ## FAQ
 
-### Q: Can I use this with Wayland?
+### Q: Do I need a VOSK model for Arabic?
 
-**A**: Partially. The base `nerd-dictation` uses `xdotool` which works only on X11. For Wayland:
-- Use `wtype` instead of `xdotool`
-- Or switch to X11 session
+**A**: No. Arabic uses Whisper (`faster-whisper` Python package). No model directory is needed for Arabic — the model downloads automatically on first use.
 
-### Q: How do I add more languages?
+### Q: Why does Arabic show two notifications?
 
-**A**: See [Advanced Options](06-advanced.md#adding-new-languages)
+**A**: The first ("Dictation Loading") fires when the script starts. The second ("Dictation Ready") fires from Python after the Whisper model is loaded and the microphone is open. **Only speak after the second notification.**
 
-### Q: Can I use Bluetooth headphones?
+### Q: Can I paste Arabic into a terminal?
 
-**A**: Yes, as long as they're set as the default audio input device.
+**A**: Yes. The script automatically detects terminal windows and uses `Ctrl+Shift+V` (terminal paste) instead of `Ctrl+V` (GUI paste).
 
-### Q: How accurate is it?
+### Q: Can I use a larger Whisper model for better accuracy?
 
-**A**: VOSK models typically achieve 90-95% accuracy for clear speech.
+**A**: Yes. Edit `WHISPER_MODEL="small"` in `scripts/dictate-start` and change it to `medium` or `large-v3`. Larger models are slower on CPU but significantly more accurate.
+
+### Q: Can I use a GPU to speed up Arabic transcription?
+
+**A**: Yes. Change `--whisper-device cpu` to `--whisper-device cuda` in `dictate-start`. Requires an NVIDIA GPU and CUDA drivers.
 
 ### Q: Can I use this offline?
 
-**A**: Yes! VOSK models run entirely offline.
-
----
-
-## Still Stuck?
-
-1. Search existing [GitHub Issues](https://github.com/ideasman42/nerd-dictation/issues)
-2. Check [VOSK Models](https://alphacephei.com/vosk/models) documentation
-3. Review [nerd-dictation README](https://github.com/ideasman42/nerd-dictation)
+**A**: Yes — once the Whisper model is downloaded and cached, everything runs offline. English VOSK is always offline.
